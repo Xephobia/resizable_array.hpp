@@ -9,9 +9,9 @@
 namespace xeph
 {
     template<
-            class Type ,
+            typename Type ,
             std::size_t base_array_size ,
-            class Allocator = std::allocator<Type>
+            typename Allocator = std::allocator<Type>
             >
 
     class resizable_array
@@ -21,16 +21,16 @@ namespace xeph
 
             resizable_array()
             {
-                this -> real_array = Allocator.allocate( base_array_size );
+                this -> real_array = Allocator::allocate( base_array_size );
                 this -> array_size = 0;
                 this -> array_capacity = base_array_size;
             } // default constructor
 
             resizable_array(const resizable_array& other)
             {
-                this -> real_array=other.real_array;
-                this -> array_size=other.array_size;
-                this -> array_capacity=other.array_capacity;
+                *this.array_size = other -> array_size;
+                *this.array_capacity = other -> array_capacity;
+                std::copy(other -> real_array , other -> real_array[ other -> array_capacity - 1 ] , this -> real_array);
             } // copy constructor
 
             resizable_array(resizable_array&& other)
@@ -47,7 +47,7 @@ namespace xeph
 
             ~resizable_array()
             {
-                Allocator.deallocate( real_array , array_capacity );
+                Allocator::deallocate( real_array , array_capacity );
             } // destructor
 
 
@@ -84,7 +84,7 @@ namespace xeph
                 return this -> real_array[ resizable_array_index ];
             } // array indexing without bound check. Cause UB if the element is nonexistant
             
-            // other :
+            // resizing :
             void resize(std::size_t resize_capacity)
             {
                 if( resize_capacity < (this -> array_size ) )
@@ -93,7 +93,7 @@ namespace xeph
                     throw(resize_error);
                 }else
                 {
-                    auto new_array = Allocator.allocate( resize_capacity );
+                    auto new_array = Allocator::allocate( resize_capacity );
 
                     std::copy(
                                 real_array ,
@@ -101,7 +101,7 @@ namespace xeph
                                 new_array
                             );
 
-                    Allocator.deallocate( real_array , array_capacity);
+                    Allocator::deallocate( real_array , array_capacity);
 
                     real_array = new_array;
 
@@ -110,7 +110,29 @@ namespace xeph
 
                 }
                 
-            } // resize (just allocate memory) 
+            } // resize (just allocate memory)
+
+
+            // pop / push back / front
+
+            void push_back( const Type& value)
+            {
+                this -> real_array[ array_size - 1 ] = value;
+                ++array_size;
+            }// copying push_back
+
+            void push_back( Type&& value)
+            {
+                real_array[ array_size - 1 ] = std::move( value );
+                ++array_size;
+            }// moving push_back
+
+            void pop_back()
+            {
+                real_array[ array_size - 1 ] = Type::~Type();
+                --array_size;
+            }// pop back
+
         private :
             Type *real_array;
             std::size_t array_size;
