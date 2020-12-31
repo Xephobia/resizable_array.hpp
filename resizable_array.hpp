@@ -21,16 +21,22 @@ namespace xeph
 
             resizable_array()
             {
-                this -> real_array = Allocator::allocate( base_array_size );
+                
+                this -> real_array = allocator_object.allocate( base_array_size );
                 this -> array_size = 0;
                 this -> array_capacity = base_array_size;
             } // default constructor
 
             resizable_array(const resizable_array& other)
             {
-                *this.array_size = other -> array_size;
-                *this.array_capacity = other -> array_capacity;
-                std::copy(other -> real_array , other -> real_array[ other -> array_capacity - 1 ] , this -> real_array);
+                (*this).array_size = other.array_size;
+                (*this).array_capacity = other.array_capacity;
+                
+                std::copy_n(
+                            other.real_array ,
+                            other.array_size ,
+                            this -> real_array
+                        );
             } // copy constructor
 
             resizable_array(resizable_array&& other)
@@ -47,7 +53,7 @@ namespace xeph
 
             ~resizable_array()
             {
-                Allocator::deallocate( real_array , array_capacity );
+                allocator_object.deallocate( real_array , array_capacity );
             } // destructor
 
 
@@ -123,7 +129,8 @@ namespace xeph
 
             void push_back( Type&& value)
             {
-                real_array[ array_size - 1 ] = std::move( value );
+                real_array[ array_size ] = value;
+                value = nullptr;
                 ++array_size;
             }// moving push_back
 
@@ -137,6 +144,8 @@ namespace xeph
             Type *real_array;
             std::size_t array_size;
             std::size_t array_capacity;
+
+            Allocator allocator_object;
     };
 }
 #endif

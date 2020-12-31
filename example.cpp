@@ -10,4 +10,5 @@ int main(){
 
     xeph::resizable_array<std::string , 5> xeph_array_copy( xeph_array );
 
+    return 0;
 }
