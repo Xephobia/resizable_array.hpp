@@ -5,50 +5,68 @@
 #include <stdexcept>
 #include <memory>
 #include <algorithm>
+#include <iterator>
 
 namespace xeph
 {
     template<
-            typename Type ,
-            std::size_t base_array_size ,
-            typename Allocator = std::allocator<Type>
+            typename T ,
+            std::size_t N ,
+            typename Allocator = std::allocator<T>
             >
 
     class resizable_array
     {
         public :
+
+            //typedefs :
+
+            typedef T                                       value_type;
+            typedef T*                                      pointer;
+            typedef const T*                                const_pointer;
+            typedef value_type&                             reference;
+            typedef const value_type&                       const_reference;
+            typedef value_type*                             iterator;
+            typedef const value_type*                       const_iterator;
+            typedef std::size_t                             size_type;
+            typedef std::ptrdiff_t                          difference_type;
+            typedef std::reverse_iterator<iterator>         reverse_iterator;
+            typedef std::reverse_iterator<const_iterator>   const_reverse_iterator;
+
+
             //constructors/destructor :
 
             resizable_array()
             {
                 
-                this -> real_array = allocator_object.allocate( base_array_size );
-                this -> array_size = 0;
-                this -> array_capacity = base_array_size;
+                real_array = allocator_object.allocate( N );
+                array_size = 0;
+                array_capacity = N;
             } // default constructor
 
-            resizable_array(const resizable_array& other)
+            resizable_array(const resizable_array& other):
+                array_size( other.array_size ),
+                array_capacity( other.array_capacity )
             {
-                (*this).array_size = other.array_size;
-                (*this).array_capacity = other.array_capacity;
-                
-                std::copy_n(
-                            other.real_array ,
-                            other.array_size ,
-                            this -> real_array
+                real_array = allocator_object.allocate( other.array_capacity );
+
+                std::copy_n
+                        (
+                            other.real_array,
+                            other.array_size,
+                            real_array
                         );
             } // copy constructor
 
-            resizable_array(resizable_array&& other)
+            resizable_array(resizable_array&& other):
+                real_array( other.real_array ),
+                array_size( array_size=other.array_size ),
+                array_capacity( other.array_capacity)
             {
-                this -> real_array=other.real_array;
-                this -> array_size=other.array_size;
-                this -> array_capacity=other.array_capacity;
-
                 //taking care of the rvalue
-                other.real_array=nullptr;
-                other.array_size=0;
-                other.array_capacity=0;
+                other.real_array = nullptr;
+                other.array_size = 0;
+                other.array_capacity = 0;
             } // move constructor
 
             ~resizable_array()
@@ -57,93 +75,169 @@ namespace xeph
             } // destructor
 
 
-            //capacity functions :
+            // capacity :
 
-            std::size_t size()
+            size_type size()
             {
-                return this -> array_size;
+                return array_size;
             } // get the number of ellements in the array
 
-            std::size_t capacity()
+            size_type capacity()
             {
-                return this -> array_capacity;
+                return array_capacity;
             } // get the capacity of the array
 
-
-            // indexing functions :
-
-            Type& at(std::size_t resizable_array_index)
+            bool empty() const noexcept
             {
-                if( resizable_array_index >= ( this -> array_capacity ) )
+                return size() == 0;
+            }
+
+
+            // Element access :
+
+            reference at(std::size_t resizable_array_index)
+            {
+                if( resizable_array_index >= array_size )
                 {
-                    std::out_of_range at_out_of_range_error( "out of bounds! : resizable_array_index >= (this -> array_capacity)" );
-                    throw(at_out_of_range_error);
+                    std::out_of_range at_out_of_range_error( "out of bounds! : resizable_array_index >= array_capacity" );
+                    throw( at_out_of_range_error );
                 }else
                 {
-                    return this -> real_array[ resizable_array_index ];
+                    return real_array[ resizable_array_index ];
                 }
                 
-            } // array indexing with bound checking ; throws if resizable_array_index >= (this -> array_capacity)
+            } // array indexing with bound checking ; throws if resizable_array_index >= array_capacity
             
-            Type& operator[] (std::size_t resizable_array_index)
+            reference operator[] (std::size_t resizable_array_index)
             {
-                return this -> real_array[ resizable_array_index ];
+                return real_array[ resizable_array_index ];
             } // array indexing without bound check. Cause UB if the element is nonexistant
             
-            // resizing :
-            void resize(std::size_t resize_capacity)
+            reference front()
             {
-                if( resize_capacity < (this -> array_size ) )
+
+            }
+
+            reference back()
+            {
+
+            }
+
+            pointer data()
+            {
+                if ( size() == 0)
                 {
-                    std::logic_error resize_error( "resize_capacity is smaller than the number of elements in the array!" );
-                    throw(resize_error);
+                    return nullptr;
                 }else
                 {
-                    auto new_array = Allocator::allocate( resize_capacity );
+                    return real_array;
+                }
+                
+            }
 
-                    std::copy(
-                                real_array ,
-                                real_array + resize_capacity ,
+
+            //iterators :
+
+            iterator begin() noexcept
+            {
+                return real_array;
+            }
+
+            const_iterator cbegin() const noexcept
+            {
+                return const_iterator( data() );
+            }
+
+            iterator end() noexcept
+            {
+                return data() + size();
+            }
+            
+            const_iterator cend() const noexcept
+            {
+                return const_iterator( end() );
+            }
+
+            reverse_iterator rbegin() noexcept
+            {
+                return reverse_iterator( end() );
+            }
+
+            const_reverse_iterator crbegin() const noexcept
+            {
+                return const_reverse_iterator( end() );
+            }
+
+            reverse_iterator rend() noexcept
+            {
+                return reverse_iterator( begin() );
+            }
+
+            const_reverse_iterator crend() const noexcept
+            {
+                return const_reverse_iterator( begin() );
+            }
+
+
+            // modifiers :
+
+            void resize(std::size_t resize_capacity)
+            {
+                if( resize_capacity < array_size )
+                {
+                    std::logic_error resize_error( "resize_capacity is smaller than the number of elements in the array!" );
+
+                    throw( resize_error );
+                }else
+                {
+                    pointer new_array = allocator_object.allocate( resize_capacity );
+
+                    std::uninitialized_move_n(
+                                this -> real_array ,
+                                this -> array_size ,
                                 new_array
                             );
 
-                    Allocator::deallocate( real_array , array_capacity);
+                    allocator_object.deallocate( real_array , array_capacity);
 
                     real_array = new_array;
 
                     array_capacity = resize_capacity;
-                    
-
                 }
-                
             } // resize (just allocate memory)
 
-
-            // pop / push back / front
-
-            void push_back( const Type& value)
+            void push_back( const_reference value)
             {
-                this -> real_array[ array_size - 1 ] = value;
+                real_array[ array_size ] = std::uninitialized_copy( value );
                 ++array_size;
             }// copying push_back
 
-            void push_back( Type&& value)
+            void push_back( value_type&& value)
             {
-                real_array[ array_size ] = value;
-                value = nullptr;
+                std::uninitialized_move_n
+                                        (
+                                        std::addressof( value ),
+                                        1,
+                                        std::addressof( real_array[ size() ] )
+                                        );
                 ++array_size;
             }// moving push_back
 
             void pop_back()
             {
-                real_array[ array_size - 1 ] = Type::~Type();
+                std::allocator_traits<Allocator>::destroy
+                                                        (
+                                                            allocator_object,
+                                                            std::addressof( real_array[ size() ] ) 
+                                                        );
+                
                 --array_size;
             }// pop back
 
         private :
-            Type *real_array;
-            std::size_t array_size;
-            std::size_t array_capacity;
+            pointer real_array;
+            size_type array_size;
+            size_type array_capacity;
 
             Allocator allocator_object;
     };
